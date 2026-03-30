@@ -32,6 +32,4 @@ Al ser 100% frontend (sin servidor, sin base de datos, sin login):
 - HTTPS automático con GitHub Pages
 - Ningún dato del usuario sale del dispositivo
 - Sin cookies, sin tracking
-
-
-Hecho en Chile 🇨🇱 para la comunidad Pokemon TCG
+ para la comunidad Pokemon TCG
