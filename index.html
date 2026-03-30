@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>PokeTimer — Entrenamiento Pokemon TCG</title>
+  <meta name="description" content="Herramienta de entrenamiento para jugadores de Pokemon TCG. Mide el tiempo de cada acción en tu turno y mejora tu velocidad de juego."/>
+  <meta name="theme-color" content="#1D9E75"/>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="PokeTimer"/>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="PokeTimer — Entrenamiento Pokemon TCG"/>
+  <meta property="og:description" content="Mide el tiempo de cada acción en tu turno. Buscar deck, barajar mano, calcular daño — entrena tu velocidad de juego."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:image" content="icons/icon-512.png"/>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+  <style>
+    :root {
+      --teal:    #1D9E75;
+      --teal-d:  #0F6E56;
+      --teal-bg: #E1F5EE;
+      --teal-tx: #085041;
+      --purple:    #534AB7;
+      --purple-d:  #3C3489;
+      --purple-bg: #EEEDFE;
+      --purple-tx: #3C3489;
+      --coral: #D85A30;
+      --blue:  #378ADD;
+      --amber: #BA7517;
+      --gray-border: rgba(0,0,0,0.1);
+      --gray-bg: #F1EFE8;
+      --gray-muted: #888780;
+      --text: #2C2C2A;
+      --text-muted: #5F5E5A;
+      --bg: #ffffff;
+      --bg-secondary: #F7F6F3;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --bg-secondary: #242422;
+        --text: #E8E6E0;
+        --text-muted: #888780;
+        --gray-border: rgba(255,255,255,0.12);
+        --gray-bg: #2a2a28;
+        --teal-bg: #0a2e22;
+        --teal-tx: #5DCAA5;
+        --purple-bg: #1a1840;
+        --purple-tx: #AFA9EC;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    #app { max-width: 480px; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.9rem; min-height: 100dvh; }
+
+    .screen { display: flex; flex-direction: column; gap: 0.9rem; }
+    .hidden { display: none !important; }
+
+    /* Header */
+    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0; }
+    .app-logo { font-size: 18px; font-weight: 600; color: var(--teal); letter-spacing: -0.5px; }
+    .app-logo span { color: var(--text-muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+
+    .section-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 400; }
+
+    /* Mode toggle */
+    .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; border-radius: var(--radius-sm); border: 0.5px solid var(--gray-border); overflow: hidden; }
+    .mode-opt { padding: 10px; text-align: center; font-size: 13px; color: var(--text-muted); cursor: pointer; background: var(--bg); transition: background 0.15s, color 0.15s; user-select: none; }
+    .mode-opt:first-child { border-right: 0.5px solid var(--gray-border); }
+    .mode-opt.selected { background: var(--teal-bg); color: var(--teal-tx); font-weight: 500; }
+
+    /* Config card */
+    .config-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .config-row { display: flex; align-items: center; gap: 10px; }
+    .config-row label { font-size: 13px; color: var(--text-muted); flex: 1; }
+    .config-row input[type=range] { flex: 1.2; accent-color: var(--teal); }
+    .config-row input[type=text] { flex: 1; padding: 6px 10px; font-size: 13px; border: 0.5px solid var(--gray-border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); outline: none; }
+    .config-row input[type=text]:focus { border-color: var(--teal); }
+    .config-val { font-size: 12px; font-weight: 500; min-width: 40px; text-align: right; color: var(--text); }
+    .config-divider { height: 0.5px; background: var(--gray-border); }
+    .config-cat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+    /* Player tabs */
+    .player-tabs { display: grid; border-radius: var(--radius); border: 0.5px solid var(--gray-border); overflow: hidden; }
+    .player-tabs.two { grid-template-columns: 1fr 1fr; }
+    .player-tabs.one { grid-template-columns: 1fr; }
+    .ptab { padding: 11px; text-align: center; font-size: 14px; color: var(--text-muted); background: var(--bg); }
+    .ptab:first-child:not(:last-child) { border-right: 0.5px solid var(--gray-border); }
+    .ptab.active-a { background: var(--teal-bg); color: var(--teal-tx); font-weight: 500; }
+    .ptab.active-b { background: var(--purple-bg); color: var(--purple-tx); font-weight: 500; }
+
+    /* Timer area */
+    .timer-area { display: flex; align-items: center; gap: 1rem; padding: 0.25rem 0; }
+    .timer-face { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+    .timer-face svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+    .timer-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    #time-display { font-size: 36px; font-weight: 600; letter-spacing: -1px; color: var(--text); transition: color 0.2s; }
+    #cat-label { font-size: 10px; color: var(--text-muted); text-align: center; max-width: 90px; line-height: 1.3; }
+
+    .timer-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .status-bar { font-size: 13px; color: var(--text-muted); min-height: 18px; line-height: 1.4; }
+    .status-bar.warn { color: var(--coral); font-weight: 500; }
+    .status-bar.good { color: var(--teal); font-weight: 500; }
+    .status-bar.info { color: var(--purple); font-weight: 500; }
+
+    .mini-hist { display: flex; flex-direction: column; gap: 3px; }
+    .mini-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 0.5px solid var(--gray-border); }
+    .mini-item .mi-cat { color: var(--text-muted); }
+    .mini-item .mi-t { font-weight: 500; }
+    .mini-item.slow .mi-t { color: var(--coral); }
+    .mini-item.good .mi-t { color: var(--teal); }
+
+    /* Action grid */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .action-btn { padding: 14px 12px; border-radius: var(--radius); border: 0.5px solid var(--gray-border); background: var(--bg); color: var(--text); cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 4px; transition: background 0.12s, transform 0.1s; user-select: none; }
+    .action-btn:active { transform: scale(0.95); }
+    .action-btn .ab-icon { font-size: 20px; margin-bottom: 2px; }
+    .action-btn .ab-name { font-size: 13px; font-weight: 500; color: var(--text); }
+    .action-btn .ab-time { font-size: 11px; color: var(--text-muted); }
+    .action-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+    .action-btn.cat-normal  { border-left: 3px solid var(--teal); }
+    .action-btn.cat-search  { border-left: 3px solid var(--blue); }
+    .action-btn.cat-shuffle { border-left: 3px solid var(--purple); }
+    .action-btn.cat-damage  { border-left: 3px solid var(--coral); }
+
+    .action-btn.cat-normal.active-action  { background: var(--teal-bg); }
+    .action-btn.cat-normal.active-action .ab-name  { color: var(--teal-tx); }
+    .action-btn.cat-search.active-action  { background: #E6F1FB; }
+    .action-btn.cat-search.active-action .ab-name  { color: #0C447C; }
+    .action-btn.cat-shuffle.active-action { background: var(--purple-bg); }
+    .action-btn.cat-shuffle.active-action .ab-name { color: var(--purple-tx); }
+    .action-btn.cat-damage.active-action  { background: #FAECE7; }
+    .action-btn.cat-damage.active-action .ab-name  { color: #712B13; }
+
+    /* Buttons */
+    .big-btn { width: 100%; padding: 15px; border-radius: var(--radius); border: 0.5px solid var(--gray-border); background: var(--bg); color: var(--text); font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; text-align: center; user-select: none; }
+    .big-btn:active { transform: scale(0.97); }
+    .big-btn.teal   { background: var(--teal); border-color: var(--teal); color: #fff; }
+    .big-btn.teal:active { background: var(--teal-d); }
+    .big-btn.purple { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .big-btn.purple:active { background: var(--purple-d); }
+    .big-btn.muted  { color: var(--text-muted); font-size: 13px; }
+    .big-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .stat-card .s-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .stat-card .s-val { font-size: 20px; font-weight: 500; }
+    .stat-card .s-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .player-section { border-radius: var(--radius); border: 0.5px solid var(--gray-border); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .player-section h4 { font-size: 13px; font-weight: 500; }
+    .player-section.pa h4 { color: var(--teal-tx); }
+    .player-section.pb h4 { color: var(--purple-tx); }
+
+    .hist-list { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+    .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--bg-secondary); font-size: 12px; gap: 6px; }
+    .hist-item .hi-lbl { color: var(--text-muted); }
+    .hist-item .hi-cat { font-size: 11px; color: var(--text-muted); flex: 1; padding-left: 4px; }
+    .hist-item .hi-t { font-weight: 500; }
+    .hist-item.slow .hi-t { color: var(--coral); }
+    .hist-item.good .hi-t { color: var(--teal); }
+
+    .chart-wrap { position: relative; width: 100%; height: 150px; }
+
+    /* Share */
+    .share-area { background: var(--bg-secondary); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .share-text { font-size: 12px; color: var(--text-muted); line-height: 1.6; white-space: pre-wrap; font-family: monospace; background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; border: 0.5px solid var(--gray-border); }
+
+    /* Install banner */
+    #install-banner { display: none; align-items: center; justify-content: space-between; gap: 10px; background: var(--teal-bg); border-radius: var(--radius); padding: 12px 14px; border: 0.5px solid var(--teal); }
+    #install-banner p { font-size: 13px; color: var(--teal-tx); }
+    #install-banner button { padding: 7px 14px; border-radius: var(--radius-sm); background: var(--teal); color: #fff; border: none; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+
+    /* Footer */
+    .app-footer { padding: 1rem 0 0.5rem; text-align: center; font-size: 11px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CONFIG -->
+  <div id="screen-config" class="screen">
+    <div class="app-header">
+      <div class="app-logo">PokeTimer <span>entrenamiento TCG</span></div>
+    </div>
+
+    <div id="install-banner">
+      <p>Instalar como app en tu celular</p>
+      <button id="btn-install">Instalar</button>
+    </div>
+
+    <div class="config-card">
+      <div class="config-cat-label">modo de juego</div>
+      <div class="mode-toggle">
+        <div class="mode-opt selected" id="mode-solo">Un jugador</div>
+        <div class="mode-opt" id="mode-duo">Dos jugadores</div>
+      </div>
+
+      <div class="config-row" id="row-name-a">
+        <label>Tu nombre</label>
+        <input type="text" id="name-a" value="Jugador A" maxlength="14"/>
+      </div>
+      <div class="config-row hidden" id="row-name-b">
+        <label>Rival</label>
+        <input type="text" id="name-b" value="Jugador B" maxlength="14"/>
+      </div>
+
+      <div class="config-divider"></div>
+      <div class="config-cat-label">límites por acción</div>
+
+      <div class="config-row">
+        <label>Acción normal</label>
+        <input type="range" id="sl-normal" min="5" max="30" step="1" value="15"/>
+        <span class="config-val" id="val-normal">15s</span>
+      </div>
+      <div class="config-row">
+        <label>Aviso a los</label>
+        <input type="range" id="sl-warn" min="3" max="15" step="1" value="10"/>
+        <span class="config-val" id="val-warn">10s</span>
+      </div>
+      <div class="config-divider"></div>
+      <div class="config-row">
+        <label>Buscar en deck</label>
+        <input type="range" id="sl-search" min="10" max="60" step="5" value="30"/>
+        <span class="config-val" id="val-search">30s</span>
+      </div>
+      <div class="config-row">
+        <label>Barajar mano</label>
+        <input type="range" id="sl-shuffle" min="10" max="60" step="5" value="25"/>
+        <span class="config-val" id="val-shuffle">25s</span>
+      </div>
+      <div class="config-row">
+        <label>Calcular daño</label>
+        <input type="range" id="sl-damage" min="5" max="30" step="5" value="20"/>
+        <span class="config-val" id="val-damage">20s</span>
+      </div>
+    </div>
+
+    <button class="big-btn teal" id="btn-go">Iniciar sesión</button>
+    <div class="app-footer">PokeTimer · hecho en Chile 🇨🇱</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen hidden">
+    <div class="app-header">
+      <div class="app-logo">PokeTimer</div>
+      <button class="big-btn muted" id="btn-stats" style="width:auto;padding:6px 12px;font-size:12px;">Ver stats</button>
+    </div>
+
+    <div class="player-tabs one" id="player-tabs">
+      <div class="ptab active-a" id="tab-a"></div>
+      <div class="ptab hidden" id="tab-b"></div>
+    </div>
+
+    <div class="timer-area">
+      <div class="timer-face">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--gray-border)" stroke-width="7"/>
+          <circle id="arc" cx="60" cy="60" r="50" fill="none" stroke="#B4B2A9" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="0"
+            style="transition: stroke-dashoffset 0.15s linear, stroke 0.2s;"/>
+        </svg>
+        <div class="timer-center">
+          <div id="time-display">--</div>
+          <div id="cat-label">esperando</div>
+        </div>
+      </div>
+      <div class="timer-info">
+        <div class="status-bar" id="status-msg">Listo para iniciar</div>
+        <div class="mini-hist" id="mini-hist"></div>
+      </div>
+    </div>
+
+    <div class="section-title">acción siguiente</div>
+    <div class="action-grid">
+      <button class="action-btn cat-normal" data-cat="normal" disabled>
+        <span class="ab-icon">▶</span>
+        <span class="ab-name">Acción normal</span>
+        <span class="ab-time" id="abt-normal"></span>
+      </button>
+      <button class="action-btn cat-search" data-cat="search" disabled>
+        <span class="ab-icon">◈</span>
+        <span class="ab-name">Buscar en deck</span>
+        <span class="ab-time" id="abt-search"></span>
+      </button>
+      <button class="action-btn cat-shuffle" data-cat="shuffle" disabled>
+        <span class="ab-icon">⇌</span>
+        <span class="ab-name">Barajar mano</span>
+        <span class="ab-time" id="abt-shuffle"></span>
+      </button>
+      <button class="action-btn cat-damage" data-cat="damage" disabled>
+        <span class="ab-icon">⚡</span>
+        <span class="ab-name">Calcular daño</span>
+        <span class="ab-time" id="abt-damage"></span>
+      </button>
+      <button class="big-btn muted" id="btn-end-turn" style="height:100%;" disabled>Finalizar turno</button>
+      <button class="big-btn teal" id="btn-primary">Iniciar turno</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="screen-stats" class="screen hidden">
+    <div class="app-header">
+      <div class="app-logo">PokeTimer</div>
+      <button class="big-btn muted" id="btn-back-game" style="width:auto;padding:6px 12px;font-size:12px;">← Volver</button>
+    </div>
+
+    <div class="section-title">resumen de sesión</div>
+    <div class="stats-grid" id="stats-global"></div>
+
+    <div class="player-section pa" id="section-a">
+      <h4 id="title-a"></h4>
+      <div class="stats-grid" id="stats-a"></div>
+      <div class="chart-wrap"><canvas id="chart-a"></canvas></div>
+      <div class="hist-list" id="hist-a"></div>
+    </div>
+
+    <div class="player-section pb hidden" id="section-b">
+      <h4 id="title-b"></h4>
+      <div class="stats-grid" id="stats-b"></div>
+      <div class="chart-wrap"><canvas id="chart-b"></canvas></div>
+      <div class="hist-list" id="hist-b"></div>
+    </div>
+
+    <div class="section-title">compartir</div>
+    <div class="share-area">
+      <div class="share-text" id="share-text"></div>
+      <div class="btn-row">
+        <button class="big-btn" id="btn-copy">Copiar texto</button>
+        <button class="big-btn" id="btn-download">Descargar imagen</button>
+      </div>
+    </div>
+    <button class="big-btn muted" id="btn-new">Nueva sesión</button>
+    <div class="app-footer">PokeTimer · hecho en Chile 🇨🇱</div>
+  </div>
+
+</div>
+
+<script>
+const CIRCUM = 2 * Math.PI * 50;
+const CAT_COLORS = { normal:'#1D9E75', search:'#378ADD', shuffle:'#534AB7', damage:'#D85A30' };
+const CAT_NAMES  = { normal:'normal', search:'buscar deck', shuffle:'barajar mano', damage:'calcular daño' };
+
+let cfg = { normal:15, warn:10, search:30, shuffle:25, damage:20 };
+let nameA='Jugador A', nameB='Jugador B', twoPlayers=false;
+let currentPlayer='a', actionsA=[], actionsB=[], chartA=null, chartB=null;
+let turnActive=false, actionStart=null, raf=null;
+let currentCat='normal', currentLimit=15;
+
+const arc=document.getElementById('arc');
+const timeDisplay=document.getElementById('time-display');
+const catLabel=document.getElementById('cat-label');
+const statusMsg=document.getElementById('status-msg');
+const btnPrimary=document.getElementById('btn-primary');
+const btnEndTurn=document.getElementById('btn-end-turn');
+const miniHist=document.getElementById('mini-hist');
+
+arc.setAttribute('stroke-dasharray', CIRCUM.toFixed(2));
+
+// PWA Install
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+document.getElementById('btn-install').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').style.display = 'none';
+});
+
+// Mode toggle
+let modeSelected = 'solo';
+document.getElementById('mode-solo').addEventListener('click', () => {
+  modeSelected='solo';
+  document.getElementById('mode-solo').className='mode-opt selected';
+  document.getElementById('mode-duo').className='mode-opt';
+  document.getElementById('row-name-b').classList.add('hidden');
+  document.getElementById('name-a').placeholder='Tu nombre';
+});
+document.getElementById('mode-duo').addEventListener('click', () => {
+  modeSelected='duo';
+  document.getElementById('mode-duo').className='mode-opt selected';
+  document.getElementById('mode-solo').className='mode-opt';
+  document.getElementById('row-name-b').classList.remove('hidden');
+  document.getElementById('name-a').placeholder='Jugador A';
+});
+
+['normal','warn','search','shuffle','damage'].forEach(k => {
+  document.getElementById('sl-'+k).addEventListener('input', e => {
+    document.getElementById('val-'+k).textContent = e.target.value + 's';
+  });
+});
+
+function pName(){ return currentPlayer==='a'?nameA:nameB; }
+function actions(){ return currentPlayer==='a'?actionsA:actionsB; }
+
+function updateTabs(){
+  const tabs=document.getElementById('player-tabs');
+  const tabA=document.getElementById('tab-a');
+  const tabB=document.getElementById('tab-b');
+  if(twoPlayers){
+    tabs.className='player-tabs two';
+    tabB.classList.remove('hidden');
+    tabA.className='ptab'+(currentPlayer==='a'?' active-a':'');
+    tabB.className='ptab'+(currentPlayer==='b'?' active-b':'');
+    tabA.textContent=nameA;
+    tabB.textContent=nameB;
+  } else {
+    tabs.className='player-tabs one';
+    tabB.classList.add('hidden');
+    tabA.className='ptab active-a';
+    tabA.textContent=nameA;
+  }
+}
+
+function updateActionBtns(){
+  document.querySelectorAll('.action-btn').forEach(b=>{
+    b.disabled=!turnActive;
+    b.classList.toggle('active-action', b.dataset.cat===currentCat && turnActive);
+  });
+  btnEndTurn.disabled=!turnActive;
+  if(!turnActive){
+    btnPrimary.disabled=false;
+    btnPrimary.textContent='Iniciar turno';
+    btnPrimary.className='big-btn '+(currentPlayer==='a'?'teal':'purple');
+  }
+}
+
+function updateCatTimes(){
+  ['normal','search','shuffle','damage'].forEach(k=>{
+    const el=document.getElementById('abt-'+k);
+    if(el) el.textContent=cfg[k]+'s';
+  });
+}
+
+function setArc(elapsed,lim,color){
+  arc.setAttribute('stroke-dashoffset',(CIRCUM*(1-Math.min(elapsed/lim,1))).toFixed(2));
+  arc.setAttribute('stroke',color);
+}
+
+function resetArcIdle(){
+  arc.setAttribute('stroke-dashoffset','0');
+  arc.setAttribute('stroke','#B4B2A9');
+  timeDisplay.textContent='--';
+  timeDisplay.style.color='';
+  catLabel.textContent='esperando';
+}
+
+function tick(){
+  if(!turnActive||!actionStart) return;
+  const el=(Date.now()-actionStart)/1000;
+  const lim=currentLimit;
+  const isSlow=el>=cfg.warn, isOver=el>=lim;
+  const col=isOver?'#D85A30':(isSlow?'#EF9F27':CAT_COLORS[currentCat]);
+  setArc(el,lim,col);
+  timeDisplay.textContent=el.toFixed(1);
+  timeDisplay.style.color=isOver?'#D85A30':(isSlow?'#EF9F27':'');
+  catLabel.textContent=CAT_NAMES[currentCat];
+  if(isOver){ statusMsg.textContent='Tiempo superado — cambia de acción'; statusMsg.className='status-bar warn'; }
+  else if(isSlow){ statusMsg.textContent='Apúrate, '+Math.ceil(lim-el)+'s restantes'; statusMsg.className='status-bar warn'; }
+  else{ statusMsg.textContent=pName()+' — '+CAT_NAMES[currentCat]; statusMsg.className='status-bar'; }
+  raf=requestAnimationFrame(tick);
+}
+
+function switchAction(cat){
+  if(!turnActive) return;
+  if(actionStart){
+    const el=parseFloat(((Date.now()-actionStart)/1000).toFixed(2));
+    actions().push({t:el,cat:currentCat,lim:currentLimit});
+    updateMiniHist();
+    statusMsg.textContent='Registrado: '+el.toFixed(1)+'s ('+CAT_NAMES[currentCat]+')';
+    statusMsg.className='status-bar '+(el>=cfg.warn?'warn':'good');
+  }
+  cancelAnimationFrame(raf);
+  currentCat=cat; currentLimit=cfg[cat];
+  actionStart=Date.now();
+  updateActionBtns();
+  raf=requestAnimationFrame(tick);
+}
+
+function updateMiniHist(){
+  const arr=actions().slice(-3);
+  miniHist.innerHTML='';
+  arr.slice().reverse().forEach(a=>{
+    const d=document.createElement('div');
+    d.className='mini-item '+(a.t>=cfg.warn?'slow':'good');
+    d.innerHTML='<span class="mi-cat">'+CAT_NAMES[a.cat]+'</span><span class="mi-t">'+a.t.toFixed(1)+'s</span>';
+    miniHist.appendChild(d);
+  });
+}
+
+function startTurn(){
+  turnActive=true; actionStart=Date.now();
+  currentCat='normal'; currentLimit=cfg.normal;
+  miniHist.innerHTML='';
+  btnPrimary.textContent='Turno activo'; btnPrimary.className='big-btn muted'; btnPrimary.disabled=true;
+  updateActionBtns();
+  statusMsg.textContent=pName()+' — acción normal'; statusMsg.className='status-bar';
+  raf=requestAnimationFrame(tick);
+}
+
+function endTurn(){
+  if(actionStart){
+    const el=parseFloat(((Date.now()-actionStart)/1000).toFixed(2));
+    actions().push({t:el,cat:currentCat,lim:currentLimit});
+  }
+  cancelAnimationFrame(raf); turnActive=false; actionStart=null;
+  resetArcIdle(); miniHist.innerHTML='';
+  if(twoPlayers){
+    currentPlayer=currentPlayer==='a'?'b':'a';
+    updateTabs();
+    statusMsg.textContent='Turno de '+pName()+', cuando estés listo';
+    statusMsg.className='status-bar info';
+  } else {
+    statusMsg.textContent='Turno finalizado — inicia el siguiente cuando quieras';
+    statusMsg.className='status-bar';
+  }
+  updateActionBtns();
+}
+
+btnPrimary.addEventListener('click',()=>{ if(!turnActive) startTurn(); });
+btnEndTurn.addEventListener('click', endTurn);
+document.querySelectorAll('.action-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{ if(turnActive) switchAction(btn.dataset.cat); });
+});
+
+document.getElementById('btn-go').addEventListener('click',()=>{
+  nameA=document.getElementById('name-a').value.trim()||'Jugador A';
+  nameB=document.getElementById('name-b').value.trim()||'Jugador B';
+  twoPlayers=modeSelected==='duo';
+  cfg.normal=parseInt(document.getElementById('sl-normal').value);
+  cfg.warn=parseInt(document.getElementById('sl-warn').value);
+  cfg.search=parseInt(document.getElementById('sl-search').value);
+  cfg.shuffle=parseInt(document.getElementById('sl-shuffle').value);
+  cfg.damage=parseInt(document.getElementById('sl-damage').value);
+  actionsA=[]; actionsB=[]; currentPlayer='a';
+  updateTabs(); resetArcIdle(); updateCatTimes(); updateActionBtns();
+  btnPrimary.disabled=false;
+  statusMsg.textContent='Listo para iniciar'; statusMsg.className='status-bar';
+  miniHist.innerHTML='';
+  showScreen('screen-game');
+});
+
+document.getElementById('btn-stats').addEventListener('click',()=>{
+  if(turnActive) endTurn();
+  renderStats(); showScreen('screen-stats');
+});
+document.getElementById('btn-back-game').addEventListener('click',()=>{ showScreen('screen-game'); });
+document.getElementById('btn-new').addEventListener('click',()=>{
+  if(chartA){chartA.destroy();chartA=null;}
+  if(chartB){chartB.destroy();chartB=null;}
+  showScreen('screen-config');
+});
+
+function showScreen(id){
+  ['screen-config','screen-game','screen-stats'].forEach(s=>
+    document.getElementById(s).classList.toggle('hidden',s!==id));
+}
+
+function calcStats(arr){
+  if(!arr.length) return {avg:0,min:0,max:0,pct:0,count:0,byCat:{}};
+  const times=arr.map(a=>a.t);
+  const avg=times.reduce((a,b)=>a+b,0)/times.length;
+  const byCat={};
+  arr.forEach(a=>{ if(!byCat[a.cat]) byCat[a.cat]=[]; byCat[a.cat].push(a.t); });
+  return { avg:parseFloat(avg.toFixed(1)), min:parseFloat(Math.min(...times).toFixed(1)),
+    max:parseFloat(Math.max(...times).toFixed(1)),
+    pct:Math.round(arr.filter(a=>a.t<cfg.warn).length/arr.length*100),
+    count:arr.length, byCat };
+}
+
+function renderStatCards(cid,stats,color){
+  const c=document.getElementById(cid); c.innerHTML='';
+  [{label:'promedio',val:stats.avg+'s'},{label:'dentro del límite',val:stats.pct+'%'},
+   {label:'más lenta / rápida',val:stats.max+'s',sub:stats.min+'s rápida'}]
+  .forEach(item=>{
+    const d=document.createElement('div'); d.className='stat-card';
+    d.innerHTML='<div class="s-label">'+item.label+'</div><div class="s-val" style="color:'+color+'">'+item.val+'</div>'+(item.sub?'<div class="s-sub">'+item.sub+'</div>':'');
+    c.appendChild(d);
+  });
+}
+
+function renderHistList(cid,arr){
+  const c=document.getElementById(cid); c.innerHTML='';
+  if(!arr.length){c.innerHTML='<div style="font-size:12px;color:var(--text-muted)">Sin acciones registradas</div>';return;}
+  arr.slice().reverse().forEach((a,i)=>{
+    const n=arr.length-i;
+    const d=document.createElement('div');
+    d.className='hist-item '+(a.t>=cfg.warn?'slow':'good');
+    d.innerHTML='<span class="hi-lbl">Acc. '+n+'</span><span class="hi-cat">'+CAT_NAMES[a.cat]+'</span><span class="hi-t">'+a.t.toFixed(1)+'s</span>';
+    c.appendChild(d);
+  });
+}
+
+function renderChart(canvasId,arr,color,existing){
+  if(existing) existing.destroy();
+  if(!arr.length) return null;
+  const isDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const tickColor=isDark?'#888780':'#888';
+  const ctx=document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx,{
+    type:'line',
+    data:{labels:arr.map((_,i)=>'A'+(i+1)),
+      datasets:[{data:arr.map(a=>a.t),borderColor:color,backgroundColor:color+'22',
+        borderWidth:2,pointRadius:5,fill:true,tension:0.3,
+        pointBackgroundColor:arr.map(a=>a.t>=cfg.warn?'#D85A30':CAT_COLORS[a.cat])}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'s — '+CAT_NAMES[arr[c.dataIndex].cat]}}},
+      scales:{x:{ticks:{font:{size:11},color:tickColor},grid:{display:false}},
+        y:{min:0,suggestedMax:Math.max(...Object.values(cfg))+2,
+          ticks:{font:{size:11},color:tickColor,callback:v=>v+'s'},
+          grid:{color:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}}}}
+  });
+}
+
+function buildShareText(sa,sb){
+  const date=new Date().toLocaleDateString('es-CL');
+  const lines=['Sesion de entrenamiento Pokemon TCG',date,''];
+  const players=twoPlayers?[[nameA,sa,actionsA],[nameB,sb,actionsB]]:[[nameA,sa,actionsA]];
+  players.forEach(([name,s,arr])=>{
+    lines.push(name+' ('+arr.length+' acciones)');
+    lines.push('  Promedio: '+s.avg+'s | Dentro del limite: '+s.pct+'%');
+    lines.push('  Mas lenta: '+s.max+'s | Mas rapida: '+s.min+'s');
+    Object.entries(s.byCat).forEach(([cat,times])=>{
+      const avg=(times.reduce((a,b)=>a+b,0)/times.length).toFixed(1);
+      lines.push('  '+CAT_NAMES[cat]+': '+times.length+' veces, avg '+avg+'s');
+    });
+    lines.push('');
+  });
+  lines.push('Limites — normal:'+cfg.normal+'s | deck:'+cfg.search+'s | barajar:'+cfg.shuffle+'s | daño:'+cfg.damage+'s');
+  lines.push('pokertimer.gg');
+  document.getElementById('share-text').textContent=lines.join('\n');
+}
+
+function renderStats(){
+  const sa=calcStats(actionsA), sb=twoPlayers?calcStats(actionsB):{avg:0,min:0,max:0,pct:0,count:0,byCat:{}};
+  const allActions=twoPlayers?[...actionsA,...actionsB]:actionsA;
+  const total=allActions.length;
+  const gPct=total>0?Math.round(allActions.filter(a=>a.t<cfg.warn).length/total*100):0;
+  const gc=document.getElementById('stats-global'); gc.innerHTML='';
+  [{label:'acciones totales',val:total},{label:'dentro del límite',val:gPct+'%'},
+   {label:'categorías usadas',val:Object.keys(sa.byCat).length}]
+  .forEach(item=>{
+    const d=document.createElement('div'); d.className='stat-card';
+    d.innerHTML='<div class="s-label">'+item.label+'</div><div class="s-val">'+item.val+'</div>';
+    gc.appendChild(d);
+  });
+  document.getElementById('title-a').textContent=nameA+' ('+actionsA.length+' acciones)';
+  renderStatCards('stats-a',sa,'#1D9E75');
+  renderHistList('hist-a',actionsA);
+  chartA=renderChart('chart-a',actionsA,'#1D9E75',chartA);
+  if(twoPlayers){
+    document.getElementById('section-b').classList.remove('hidden');
+    document.getElementById('title-b').textContent=nameB+' ('+actionsB.length+' acciones)';
+    renderStatCards('stats-b',sb,'#534AB7');
+    renderHistList('hist-b',actionsB);
+    chartB=renderChart('chart-b',actionsB,'#534AB7',chartB);
+  } else {
+    document.getElementById('section-b').classList.add('hidden');
+  }
+  buildShareText(sa,sb);
+}
+
+document.getElementById('btn-copy').addEventListener('click',()=>{
+  navigator.clipboard.writeText(document.getElementById('share-text').textContent).then(()=>{
+    const b=document.getElementById('btn-copy'); b.textContent='¡Copiado!';
+    setTimeout(()=>{b.textContent='Copiar texto';},1500);
+  });
+});
+
+document.getElementById('btn-download').addEventListener('click',()=>{
+  const sa=calcStats(actionsA), sb=calcStats(actionsB);
+  const h=twoPlayers?340:220;
+  const canvas=document.createElement('canvas'); canvas.width=480; canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,480,h);
+  ctx.fillStyle='#1D9E75'; ctx.fillRect(0,0,480,5);
+  ctx.fillStyle='#2C2C2A'; ctx.font='600 18px sans-serif'; ctx.fillText('PokeTimer — Entrenamiento TCG',24,36);
+  ctx.fillStyle='#888780'; ctx.font='12px sans-serif'; ctx.fillText(new Date().toLocaleDateString('es-CL'),24,54);
+  const players=twoPlayers?[[nameA,sa,actionsA,'#E1F5EE','#085041','#1D9E75',24],[nameB,sb,actionsB,'#EEEDFE','#3C3489','#534AB7',252]]:[[nameA,sa,actionsA,'#E1F5EE','#085041','#1D9E75',24]];
+  players.forEach(([name,s,arr,bg,tc,lc,ox])=>{
+    const w=twoPlayers?200:432;
+    ctx.fillStyle=bg; ctx.fillRect(ox,68,w,120);
+    ctx.fillStyle=tc; ctx.font='500 13px sans-serif'; ctx.fillText(name,ox+12,90);
+    ctx.fillStyle='#2C2C2A'; ctx.font='12px sans-serif';
+    ctx.fillText('Acciones: '+arr.length,ox+12,110);
+    ctx.fillText('Promedio: '+s.avg+'s',ox+12,128);
+    ctx.fillText('Dentro del limite: '+s.pct+'%',ox+12,146);
+    ctx.fillText('Mas lenta: '+s.max+'s',ox+12,164);
+    if(arr.length>1){
+      const maxV=Math.max(...Object.values(cfg))+2,oy=228,hh=80,ww=twoPlayers?196:432;
+      ctx.strokeStyle=lc; ctx.lineWidth=2; ctx.beginPath();
+      arr.forEach((a,i)=>{ const x=ox+(i/(arr.length-1))*ww,y=oy+hh-(a.t/maxV)*hh; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
+      arr.forEach((a,i)=>{ const x=ox+(i/(arr.length-1))*ww,y=oy+hh-(a.t/maxV)*hh; ctx.fillStyle=a.t>=cfg.warn?'#D85A30':lc; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); });
+    }
+  });
+  ctx.fillStyle='#B4B2A9'; ctx.font='11px sans-serif'; ctx.fillText('pokertimer.gg · hecho en Chile',24,h-12);
+  const a=document.createElement('a'); a.download='pokertimer-sesion.png'; a.href=canvas.toDataURL('image/png'); a.click();
+});
+
+// Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+updateTabs(); updateCatTimes(); updateActionBtns();
+</script>
+</body>
+</html>
