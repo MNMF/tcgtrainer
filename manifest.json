@@ -1,14 +1,14 @@
 {
-  "name": "PokeTimer — Entrenamiento Pokemon TCG",
-  "short_name": "PokeTimer",
-  "description": "Herramienta de entrenamiento para jugadores de Pokemon TCG. Mide el tiempo de cada acción en tu turno.",
-  "start_url": "/",
+  "name": "TCGTrainer — Entrenamiento Pokemon TCG",
+  "short_name": "TCGTrainer",
+  "description": "Herramienta de entrenamiento para jugadores de Pokemon TCG.",
+  "start_url": "/tcgtrainer/",
+  "scope": "/tcgtrainer/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#1D9E75",
   "lang": "es",
-  "categories": ["games", "sports", "utilities"],
   "icons": [
     {
       "src": "icons/icon-192.png",
