@@ -713,7 +713,7 @@ document.getElementById('btn-download').addEventListener('click',()=>{
       arr.forEach((a,i)=>{ const x=ox+(i/(arr.length-1))*ww,y=oy+hh-(a.t/maxV)*hh; ctx.fillStyle=a.t>=cfg.warn?'#D85A30':lc; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); });
     }
   });
-  ctx.fillStyle='#B4B2A9'; ctx.font='11px sans-serif'; ctx.fillText('pokertimer.gg · hecho en Chile',24,h-12);
+  ctx.fillStyle='#B4B2A9'; ctx.font='11px sans-serif'; ctx.fillText('pokertimer.gg · tu amigo mati',24,h-12);
   const a=document.createElement('a'); a.download='pokertimer-sesion.png'; a.href=canvas.toDataURL('image/png'); a.click();
 });
 
