@@ -188,6 +188,9 @@
 
     /* Footer */
     .app-footer { padding: 1rem 0 0.5rem; text-align: center; font-size: 11px; color: var(--text-muted); }
+
+    .sound-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none; }
+.sound-toggle input { accent-color: var(--teal); }
   </style>
 </head>
 <body>
@@ -261,7 +264,10 @@
       <div class="app-logo">PokeTimer</div>
       <button class="big-btn muted" id="btn-stats" style="width:auto;padding:6px 12px;font-size:12px;">Ver stats</button>
     </div>
-
+<label class="sound-toggle">
+  <input type="checkbox" id="sound-on" checked/>
+  Sonido y vibración activados
+</label>
     <div class="player-tabs one" id="player-tabs">
       <div class="ptab active-a" id="tab-a"></div>
       <div class="ptab hidden" id="tab-b"></div>
@@ -353,6 +359,8 @@
 
 <script>
 const CIRCUM = 2 * Math.PI * 50;
+
+  
 const CAT_COLORS = { normal:'#1D9E75', search:'#378ADD', shuffle:'#534AB7', damage:'#D85A30' };
 const CAT_NAMES  = { normal:'normal', search:'buscar deck', shuffle:'barajar mano', damage:'calcular daño' };
 
@@ -475,14 +483,19 @@ function tick(){
   timeDisplay.textContent=el.toFixed(1);
   timeDisplay.style.color=isOver?'#D85A30':(isSlow?'#EF9F27':'');
   catLabel.textContent=CAT_NAMES[currentCat];
-  if(isOver){ statusMsg.textContent='Tiempo superado — cambia de acción'; statusMsg.className='status-bar warn'; }
-  else if(isSlow){ statusMsg.textContent='Apúrate, '+Math.ceil(lim-el)+'s restantes'; statusMsg.className='status-bar warn'; }
-  else{ statusMsg.textContent=pName()+' — '+CAT_NAMES[currentCat]; statusMsg.className='status-bar'; }
-  raf=requestAnimationFrame(tick);
+ if(isOver){
+  statusMsg.textContent='Tiempo superado — cambia de acción';
+  statusMsg.className='status-bar warn';
+} else if(isSlow){
+  const remaining = lim - el;
+  if(remaining <= cfg.warn && remaining > cfg.warn - 0.15) feedbackAviso();
+  statusMsg.textContent='Apúrate, '+Math.ceil(remaining)+'s restantes';
+  statusMsg.className='status-bar warn';
 }
 
 function switchAction(cat){
   if(!turnActive) return;
+  feedbackAccion(); // <- aquí
   if(actionStart){
     const el=parseFloat(((Date.now()-actionStart)/1000).toFixed(2));
     actions().push({t:el,cat:currentCat,lim:currentLimit});
