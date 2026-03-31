@@ -175,7 +175,7 @@
       </div>
     </div>
     <button class="big-btn teal" id="btn-go">Iniciar sesión</button>
-    <div class="app-footer">TCGTrainer · hecho en Chile 🇨🇱</div>
+    <div class="app-footer">TCGTrainer · by tu amigo mati</div>
   </div>
 
   <div id="screen-game" class="screen hidden">
@@ -264,7 +264,7 @@
       </div>
     </div>
     <button class="big-btn muted" id="btn-new">Nueva sesión</button>
-    <div class="app-footer">TCGTrainer · hecho en Chile 🇨🇱</div>
+    <div class="app-footer">TCGTrainer · by mati</div>
   </div>
 
 </div>
@@ -482,7 +482,7 @@ document.getElementById('btn-download').addEventListener('click',()=>{
   ctx.fillStyle='#888780'; ctx.font='12px sans-serif'; ctx.fillText(new Date().toLocaleDateString('es-CL'),24,54);
   const players=twoPlayers?[[nameA,sa,actionsA,'#E1F5EE','#085041','#1D9E75',24],[nameB,sb,actionsB,'#EEEDFE','#3C3489','#534AB7',252]]:[[nameA,sa,actionsA,'#E1F5EE','#085041','#1D9E75',24]];
   players.forEach(([name,s,arr,bg,tc,lc,ox])=>{ const w=twoPlayers?200:432; ctx.fillStyle=bg; ctx.fillRect(ox,68,w,120); ctx.fillStyle=tc; ctx.font='500 13px sans-serif'; ctx.fillText(name,ox+12,90); ctx.fillStyle='#2C2C2A'; ctx.font='12px sans-serif'; ctx.fillText('Acciones: '+arr.length,ox+12,110); ctx.fillText('Promedio: '+s.avg+'s',ox+12,128); ctx.fillText('Dentro del limite: '+s.pct+'%',ox+12,146); ctx.fillText('Mas lenta: '+s.max+'s',ox+12,164); if(arr.length>1){ const maxV=Math.max(...Object.values(cfg))+2,oy=228,hh=80,ww=twoPlayers?196:432; ctx.strokeStyle=lc; ctx.lineWidth=2; ctx.beginPath(); arr.forEach((a,i)=>{ const x=ox+(i/(arr.length-1))*ww,y=oy+hh-(a.t/maxV)*hh; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke(); arr.forEach((a,i)=>{ const x=ox+(i/(arr.length-1))*ww,y=oy+hh-(a.t/maxV)*hh; ctx.fillStyle=a.t>=cfg.warn?'#D85A30':lc; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); }); } });
-  ctx.fillStyle='#B4B2A9'; ctx.font='11px sans-serif'; ctx.fillText('tcgtrainer.cl · hecho en Chile',24,h-12);
+  ctx.fillStyle='#B4B2A9'; ctx.font='11px sans-serif'; ctx.fillText('tcgtrainer.cl · de tu amigo mati',24,h-12);
   const a=document.createElement('a'); a.download='tcgtrainer-sesion.png'; a.href=canvas.toDataURL('image/png'); a.click();
 });
 
